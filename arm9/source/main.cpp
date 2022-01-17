@@ -60,9 +60,9 @@ USA
 #endif
 
 int fail(std::string debug){
-	printf("extlink2argv boot fail:\n");
+	printf("extlink2argv boot fail:");
 	printf(debug.c_str());
-	printf("\nPress START to power off.");
+	printf("Press START to power off.");
 	while(1) {
 		handleARM9SVC();	/* Do not remove, handles TGDS services */
 		IRQVBlankWait();
@@ -99,30 +99,6 @@ void closeSoundUser() {
 	//Stubbed. Gets called when closing an audiostream of a custom audio decoder
 }
 
-static inline void menuShow(){
-	clrscr();
-	printf("     ");
-	printf("     ");
-	printf("toolchaingenericds-template: ");
-	printf("(Select): This menu. ");
-	printf("(Start): FileBrowser : (A) Play WAV/IMA-ADPCM (Intel) strm ");
-	printf("(D-PAD:UP/DOWN): Volume + / - ");
-	printf("(D-PAD:LEFT): GDB Debugging. >%d", TGDSPrintfColor_Green);
-	printf("(D-PAD:RIGHT): Demo Sound. >%d", TGDSPrintfColor_Yellow);
-	printf("(B): Stop WAV/IMA-ADPCM file. ");
-	printf("Current Volume: %d", (int)getVolume());
-	if(internalCodecType == SRC_WAVADPCM){
-		printf("ADPCM Play: >%d", TGDSPrintfColor_Red);
-	}
-	else if(internalCodecType == SRC_WAV){	
-		printf("WAVPCM Play: >%d", TGDSPrintfColor_Green);
-	}
-	else{
-		printf("Player Inactive");
-	}
-	printf("Available heap memory: %d >%d", getMaxRam(), TGDSPrintfColor_Cyan);
-}
-
 //ToolchainGenericDS-LinkedModule User implementation: Called if TGDS-LinkedModule fails to reload ARM9.bin from DLDI.
 char args[8][MAX_TGDSFILENAME_LENGTH];
 char *argvs[8];
@@ -144,8 +120,8 @@ int main(int argc, char **argv) {
 	GUI_init(isTGDSCustomConsole);
 	GUI_clear();
 	
-	printf("extlink2argv\n");
-	printf("Built in TGDS\n");
+	printf("              ");
+	printf("              ");
 	
 	//xmalloc init removes args, so save them
 	int i = 0;
@@ -168,7 +144,7 @@ int main(int argc, char **argv) {
 		printf("FS Init ok.");
 	}
 	else{
-		printf("FS Init error: %d", ret);
+		return fail("FS Init error: " + ret);
 	}
 	
 	asm("mcr	p15, 0, r0, c7, c10, 4");
@@ -181,27 +157,26 @@ int main(int argc, char **argv) {
 	RenderTGDSLogoMainEngine((uint8*)&TGDSLogoLZSSCompressed[0], TGDSLogoLZSSCompressed_size);
 	
 	// actual code that is me
-	FILE* f = fopen("/moonshl2/extlink.dat","r+b");
 	TExtLinkBody extlink;
-	if (f) {
-		memset(&extlink, 0, sizeof(TExtLinkBody));
-		fread(&extlink, 1, sizeof(TExtLinkBody),f);
-		if(extlink.ID != ExtLinkBody_ID) {
-			fclose(f);
-			return fail("Extlink ID mismatch.");
-		}
-		fseek(f,0,SEEK_SET);
-		fwrite("____", 1, 4, f);
-		fflush(f);
+	FILE* f = fopen("sd:/moonshl2/extlink.dat","r+b");
+	if (!f) return fail("Extlink does not exist.");
+	memset(&extlink, 0, sizeof(TExtLinkBody));
+	fread(&extlink, 1, sizeof(TExtLinkBody),f);
+	if(extlink.ID != ExtLinkBody_ID) {
 		fclose(f);
-	} else return fail("Extlink does not exist.");
+		return fail("Extlink ID mismatch.");
+	}
+	fseek(f,0,SEEK_SET);
+	fwrite("____", 1, 4, f);
+	fflush(f);
+	fclose(f);
 	char target[768];
 	ucs2tombs((unsigned char*)target, extlink.NDSFullPathFilenameUnicode, 768);
 	std::string txtpath;
 	for(u32 i = 0; i < strlen(target); i++){
 		txtpath.push_back(target[i]);
 	}
-	txtpath = txtpath.erase(txtpath.size() - 4) + ".txt";
+	txtpath = "sd:" + txtpath.erase(txtpath.size() - 4) + ".txt";
 	f = fopen(txtpath.c_str(), "r");
 	if (!f) return fail("Path text file does not exist.");
 	std::vector<char*> argarray;
