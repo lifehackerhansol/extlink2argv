@@ -1,5 +1,9 @@
-*.nds
+*.lnk
 *.elf
+*.nds
+*.srl
+*.bin
+*.map
+*.ld
+*.specs
 build
-data
-lib

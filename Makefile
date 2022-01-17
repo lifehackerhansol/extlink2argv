@@ -1,222 +1,169 @@
-#---------------------------------------------------------------------------------
-.SUFFIXES:
-#---------------------------------------------------------------------------------
+#
+#			Copyright (C) 2017  Coto
+#This program is free software; you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation; either version 2 of the License, or
+#(at your option) any later version.
 
-ifeq ($(strip $(DEVKITARM)),)
-$(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
+#This program is distributed in the hope that it will be useful, but
+#WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+#General Public License for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with this program; if not, write to the Free Software
+#Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
+#USA
+#
+
+#TGDS1.6 compatible Makefile
+
+#ToolchainGenericDS specific: Use Makefiles from either TGDS, or custom
+#Note: Woopsi template mostly targets ARM9 SDK. Thus the default ARM7 template is used
+export SOURCE_MAKEFILE7 = default
+export SOURCE_MAKEFILE9 = default
+
+#Shared
+include $(DEFAULT_GCC_PATH)/Makefile.basenewlib
+
+#Custom
+# Project Specific
+export TGDSPROJECTNAME = extlink2argv
+export EXECUTABLE_FNAME = $(TGDSPROJECTNAME).nds
+export EXECUTABLE_VERSION_HEADER =	0.1
+export EXECUTABLE_VERSION =	"$(EXECUTABLE_VERSION_HEADER)"
+export TGDSPKG_TARGET_NAME := /
+#The ndstool I use requires to have the elf section removed, so these rules create elf headerless- binaries.
+export BINSTRIP_RULE_7 =	arm7.bin
+export BINSTRIP_RULE_9 =	arm9.bin
+export DIR_ARM7 = arm7
+export BUILD_ARM7	=	build
+export DIR_ARM9 = arm9
+export BUILD_ARM9	=	build
+export ELF_ARM7 = arm7.elf
+export ELF_ARM9 = arm9.elf
+export NONSTRIPELF_ARM7 = arm7-nonstripped.elf
+export NONSTRIPELF_ARM9 = arm9-nonstripped.elf
+
+export TARGET_LIBRARY_CRT0_FILE_7 = nds_arm_ld_crt0
+export TARGET_LIBRARY_CRT0_FILE_9 = nds_arm_ld_crt0
+export TARGET_LIBRARY_LINKER_FILE_7 = $(TARGET_LIBRARY_PATH)$(TARGET_LIBRARY_LINKER_SRC)/$(TARGET_LIBRARY_CRT0_FILE_7).S
+export TARGET_LIBRARY_LINKER_FILE_9 = $(TARGET_LIBRARY_PATH)$(TARGET_LIBRARY_LINKER_SRC)/$(TARGET_LIBRARY_CRT0_FILE_9).S
+
+export TARGET_LIBRARY_TGDS_NTR_7 = toolchaingen7
+export TARGET_LIBRARY_TGDS_NTR_9 = toolchaingen9
+export TARGET_LIBRARY_TGDS_TWL_7 = $(TARGET_LIBRARY_TGDS_NTR_7)i
+export TARGET_LIBRARY_TGDS_TWL_9 = $(TARGET_LIBRARY_TGDS_NTR_9)i
+
+#####################################################ARM7#####################################################
+
+export DIRS_ARM7_SRC = source/	\
+			source/interrupts/	\
+			../common/	\
+			../common/templateCode/source/	\
+			../common/templateCode/data/arm7/	
+			
+export DIRS_ARM7_HEADER = source/	\
+			source/interrupts/	\
+			include/	\
+			../common/	\
+			../common/templateCode/source/	\
+			../common/templateCode/data/arm7/	\
+			build/	\
+			../$(PosIndCodeDIR_FILENAME)/$(DIR_ARM7)/include/
+#####################################################ARM9#####################################################
+
+export DIRS_ARM9_SRC = data/	\
+			source/	\
+			source/interrupts/	\
+			source/gui/	\
+			source/TGDSMemoryAllocator/	\
+			../common/	\
+			../common/templateCode/source/	\
+			../common/templateCode/data/arm9/	
+			
+export DIRS_ARM9_HEADER = data/	\
+			build/	\
+			include/	\
+			source/gui/	\
+			source/TGDSMemoryAllocator/	\
+			../common/	\
+			../common/templateCode/source/	\
+			../common/templateCode/data/arm9/	\
+			../$(PosIndCodeDIR_FILENAME)/$(DIR_ARM9)/include/
+			
+# Build Target(s)	(both processors here)
+all: $(EXECUTABLE_FNAME)
+#all:	debug
+
+#ignore building this
+.PHONY: $(ELF_ARM7)	$(ELF_ARM9)
+
+#Make
+compile	:
+	-cp	-r	$(TARGET_LIBRARY_PATH)$(TARGET_LIBRARY_MAKEFILES_SRC)/templateCode/	$(CURDIR)/common/
+	-cp	-r	$(TARGET_LIBRARY_MAKEFILES_SRC7_FPIC)	$(CURDIR)/$(PosIndCodeDIR_FILENAME)/$(DIR_ARM7)
+	-$(MAKE)	-R	-C	$(PosIndCodeDIR_FILENAME)/$(DIR_ARM7)/
+	-cp	-r	$(TARGET_LIBRARY_MAKEFILES_SRC9_FPIC)	$(CURDIR)/$(PosIndCodeDIR_FILENAME)/$(DIR_ARM9)
+	-$(MAKE)	-R	-C	$(PosIndCodeDIR_FILENAME)/$(DIR_ARM9)/
+ifeq ($(SOURCE_MAKEFILE7),default)
+	cp	-r	$(TARGET_LIBRARY_MAKEFILES_SRC7_NOFPIC)	$(CURDIR)/$(DIR_ARM7)
 endif
-
-# These set the information text in the nds file
-GAME_TITLE     := extlink2argv
-GAME_SUBTITLE1 := extlink to argv wrapper
-GAME_SUBTITLE2 := lifehackerhansol
-
-include $(DEVKITARM)/ds_rules
-
-export LIBANDS = $(CURDIR)/libands
-#---------------------------------------------------------------------------------
-# TARGET is the name of the output
-# BUILD is the directory where object files & intermediate files will be placed
-# SOURCES is a list of directories containing source code
-# INCLUDES is a list of directories containing extra header files
-# DATA is a list of directories containing binary files embedded using bin2o
-# GRAPHICS is a list of directories containing image files to be converted with grit
-# AUDIO is a list of directories containing audio to be converted by maxmod
-# ICON is the image used to create the game icon, leave blank to use default rule
-# NITRO is a directory that will be accessible via NitroFS
-#---------------------------------------------------------------------------------
-TARGET   := $(shell basename $(CURDIR))
-BUILD    := build
-SOURCES  := source
-INCLUDES := include
-DATA     := data
-GRAPHICS :=
-AUDIO    :=
-ICON     :=
-
-# specify a directory which contains the nitro filesystem
-# this is relative to the Makefile
-NITRO    :=
-
-#---------------------------------------------------------------------------------
-# options for code generation
-#---------------------------------------------------------------------------------
-ARCH := -marm -mthumb-interwork -march=armv5te -mtune=arm946e-s
-
-CFLAGS   := -g -Wall -O3\
-            $(ARCH) $(INCLUDE) -DARM9
-CXXFLAGS := $(CFLAGS) -fno-rtti -fno-exceptions
-ASFLAGS  := -g $(ARCH)
-LDFLAGS   = -specs=ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
-
-#---------------------------------------------------------------------------------
-# any extra libraries we wish to link with the project (order is important)
-#---------------------------------------------------------------------------------
-LIBS := -lfat -lands9
-
-# automatigically add libraries for NitroFS
-ifneq ($(strip $(NITRO)),)
-LIBS := -lfilesystem -lfat $(LIBS)
+	$(MAKE)	-R	-C	$(DIR_ARM7)/
+ifeq ($(SOURCE_MAKEFILE9),default)
+	cp	-r	$(TARGET_LIBRARY_MAKEFILES_SRC9_NOFPIC)	$(CURDIR)/$(DIR_ARM9)
 endif
-# automagically add maxmod library
-ifneq ($(strip $(AUDIO)),)
-LIBS := -lmm9 $(LIBS)
-endif
-
+	$(MAKE)	-R	-C	$(DIR_ARM9)/
+	
+$(EXECUTABLE_FNAME)	:	compile
+	-@echo 'ndstool begin'
+	$(NDSTOOL)	-v	-c $@	-7  $(CURDIR)/arm7/$(BINSTRIP_RULE_7)	-e7  0x03800000	-9 $(CURDIR)/arm9/$(BINSTRIP_RULE_9) -e9  0x02000000	-b	icon.bmp "ToolchainGenericDS SDK;$(TGDSPROJECTNAME) NDS Binary; "
+	$(NDSTOOL)	-c 	${@:.nds=.srl} -g "TGDS" "NN" "NDS.TinyFB" -b	icon.bmp "ToolchainGenericDS SDK;$(TGDSPROJECTNAME) TWL Binary;" -7 arm7/arm7-nonstripped_dsi.elf -9 arm9/arm9-nonstripped_dsi.elf
+	-mv ${@:.nds=.srl}	/E
+	-@echo 'ndstool end: built: $@'
+	
 #---------------------------------------------------------------------------------
-# list of directories containing libraries, this must be the top level containing
-# include and lib
-#---------------------------------------------------------------------------------
-LIBDIRS := $(LIBANDS) $(LIBNDS) $(PORTLIBS)
-
-#---------------------------------------------------------------------------------
-# no real need to edit anything past this point unless you need to add additional
-# rules for different file extensions
-#---------------------------------------------------------------------------------
-ifneq ($(BUILD),$(notdir $(CURDIR)))
-#---------------------------------------------------------------------------------
-
-export OUTPUT := $(CURDIR)/$(TARGET)
-
-export VPATH := $(CURDIR)/$(subst /,,$(dir $(ICON)))\
-                $(foreach dir,$(SOURCES),$(CURDIR)/$(dir))\
-                $(foreach dir,$(DATA),$(CURDIR)/$(dir))\
-                $(foreach dir,$(GRAPHICS),$(CURDIR)/$(dir))
-
-export DEPSDIR := $(CURDIR)/$(BUILD)
-
-CFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
-CPPFILES := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
-SFILES   := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
-PNGFILES := $(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.png)))
-BINFILES := $(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
-
-# prepare NitroFS directory
-ifneq ($(strip $(NITRO)),)
-  export NITRO_FILES := $(CURDIR)/$(NITRO)
-endif
-
-# get audio list for maxmod
-ifneq ($(strip $(AUDIO)),)
-  export MODFILES	:=	$(foreach dir,$(notdir $(wildcard $(AUDIO)/*.*)),$(CURDIR)/$(AUDIO)/$(dir))
-
-  # place the soundbank file in NitroFS if using it
-  ifneq ($(strip $(NITRO)),)
-    export SOUNDBANK := $(NITRO_FILES)/soundbank.bin
-
-  # otherwise, needs to be loaded from memory
-  else
-    export SOUNDBANK := soundbank.bin
-    BINFILES += $(SOUNDBANK)
-  endif
-endif
-
-#---------------------------------------------------------------------------------
-# use CXX for linking C++ projects, CC for standard C
-#---------------------------------------------------------------------------------
-ifeq ($(strip $(CPPFILES)),)
-#---------------------------------------------------------------------------------
-  export LD := $(CC)
-#---------------------------------------------------------------------------------
-else
-#---------------------------------------------------------------------------------
-  export LD := $(CXX)
-#---------------------------------------------------------------------------------
-endif
-#---------------------------------------------------------------------------------
-
-export OFILES_BIN   :=	$(addsuffix .o,$(BINFILES))
-
-export OFILES_SOURCES := $(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
-
-export OFILES := $(PNGFILES:.png=.o) $(OFILES_BIN) $(OFILES_SOURCES)
-
-export HFILES := $(PNGFILES:.png=.h) $(addsuffix .h,$(subst .,_,$(BINFILES)))
-
-export INCLUDE  := $(foreach dir,$(INCLUDES),-iquote $(CURDIR)/$(dir))\
-                   $(foreach dir,$(LIBDIRS),-I$(dir)/include)\
-                   -I$(CURDIR)/$(BUILD)
-export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
-
-ifeq ($(strip $(ICON)),)
-  icons := $(wildcard *.bmp)
-
-  ifneq (,$(findstring $(TARGET).bmp,$(icons)))
-    export GAME_ICON := $(CURDIR)/$(TARGET).bmp
-  else
-    ifneq (,$(findstring icon.bmp,$(icons)))
-      export GAME_ICON := $(CURDIR)/icon.bmp
-    endif
-  endif
-else
-  ifeq ($(suffix $(ICON)), .grf)
-    export GAME_ICON := $(CURDIR)/$(ICON)
-  else
-    export GAME_ICON := $(CURDIR)/$(BUILD)/$(notdir $(basename $(ICON))).grf
-  endif
-endif
-
-.PHONY: $(BUILD) clean
-
-#---------------------------------------------------------------------------------
-$(BUILD):
-	@mkdir -p $@
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
-
-#---------------------------------------------------------------------------------
+# Clean
+each_obj = $(foreach dirres,$(dir_read_arm9_files),$(dirres).)
+	
 clean:
-	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).nds $(SOUNDBANK)
-
-#---------------------------------------------------------------------------------
-else
-
-#---------------------------------------------------------------------------------
-# main targets
-#---------------------------------------------------------------------------------
-$(OUTPUT).nds: $(OUTPUT).elf $(NITRO_FILES) $(GAME_ICON)
-	ndstool -h 0x200 -c $(OUTPUT).nds -9 $(OUTPUT).elf -b $(GAME_ICON) "$(GAME_TITLE);$(GAME_SUBTITLE1);$(GAME_SUBTITLE2)" $(_ADDFILES)
-$(OUTPUT).elf: $(OFILES)
-
-# source files depend on generated headers
-$(OFILES_SOURCES) : $(HFILES)
-
-# need to build soundbank first
-$(OFILES): $(SOUNDBANK)
-
-#---------------------------------------------------------------------------------
-# rule to build solution from music files
-#---------------------------------------------------------------------------------
-$(SOUNDBANK) : $(MODFILES)
-#---------------------------------------------------------------------------------
-	mmutil $^ -d -o$@ -hsoundbank.h
-
-#---------------------------------------------------------------------------------
-%.bin.o %_bin.h : %.bin
-#---------------------------------------------------------------------------------
-	@echo $(notdir $<)
-	@$(bin2o)
-
-#---------------------------------------------------------------------------------
-# This rule creates assembly source files using grit
-# grit takes an image file and a .grit describing how the file is to be processed
-# add additional rules like this for each image extension
-# you use in the graphics folders
-#---------------------------------------------------------------------------------
-%.s %.h: %.png %.grit
-#---------------------------------------------------------------------------------
-	grit $< -fts -o$*
-
-#---------------------------------------------------------------------------------
-# Convert non-GRF game icon to GRF if needed
-#---------------------------------------------------------------------------------
-$(GAME_ICON): $(notdir $(ICON))
-#---------------------------------------------------------------------------------
-	@echo convert $(notdir $<)
-	@grit $< -g -gt -gB4 -gT FF00FF -m! -p -pe 16 -fh! -ftr
-
--include $(DEPSDIR)/*.d
-
-#---------------------------------------------------------------------------------------
+	$(MAKE)	clean	-C	$(DIR_ARM7)/
+	$(MAKE) clean	-C	$(PosIndCodeDIR_FILENAME)/$(DIR_ARM7)/
+ifeq ($(SOURCE_MAKEFILE7),default)
+	-@rm -rf $(CURDIR)/$(DIR_ARM7)/Makefile
 endif
-#---------------------------------------------------------------------------------------
+#--------------------------------------------------------------------
+	$(MAKE)	clean	-C	$(DIR_ARM9)/
+	$(MAKE) clean	-C	$(PosIndCodeDIR_FILENAME)/$(DIR_ARM9)/
+ifeq ($(SOURCE_MAKEFILE9),default)
+	-@rm -rf $(CURDIR)/$(DIR_ARM9)/Makefile
+endif
+	-@rm -rf $(CURDIR)/$(PosIndCodeDIR_FILENAME)/$(DIR_ARM7)/Makefile
+	-@rm -rf $(CURDIR)/$(PosIndCodeDIR_FILENAME)/$(DIR_ARM9)/Makefile
+	-@rm -fr $(EXECUTABLE_FNAME)	$(TGDSPROJECTNAME).srl	$(CURDIR)/common/templateCode/
+
+rebase:
+	git reset --hard HEAD
+	git clean -f -d
+	git pull
+
+commitChanges:
+	-@git commit -a	-m '$(COMMITMSG)'
+	-@git push origin HEAD
+
+#---------------------------------------------------------------------------------
+
+switchStable:
+	-@git checkout -f	'TGDS1.65'
+
+#---------------------------------------------------------------------------------
+
+switchMaster:
+	-@git checkout -f	'master'
+
+#---------------------------------------------------------------------------------
+
+#ToolchainGenericDS Package deploy format required by ToolchainGenericDS-OnlineApp.
+BuildTGDSPKG:
+	-@echo 'Build TGDS Package. '
+	-$(TGDSPKGBUILDER) $(TGDSPROJECTNAME) $(TGDSPKG_TARGET_NAME) $(LIBPATH) /release/arm7dldi-ntr/
