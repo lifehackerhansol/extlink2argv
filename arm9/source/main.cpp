@@ -48,10 +48,10 @@ USA
 #include "fatfslayerTGDS.h"
 #include "WoopsiTemplate.h"
 
+#include "limitsTGDS.h"
+
 #include <cstdio>
 #include <string>
-#include <vector>
-#include <unistd.h>
 
 #include "extlink.h"
 
@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
 	{
 		printf("FS Init ok.");
 	}
-	else{
+	else {
 		return fail("FS Init error: " + ret);
 	}
 	
@@ -147,10 +147,10 @@ int main(int argc, char **argv) {
 	
 	// actual code that is me
 	TExtLinkBody extlink;
-	FILE* f = fopen("sd:/moonshl2/extlink.dat","r+b");
-	if (!f) return fail("Extlink does not exist.");
+	FILE* f = fopen("0:/moonshl2/extlink.dat", "rb+");
+	if (f == NULL) return fail("Extlink does not exist.");
 	memset(&extlink, 0, sizeof(TExtLinkBody));
-	fread(&extlink, 1, sizeof(TExtLinkBody),f);
+	fread(&extlink, 1, sizeof(TExtLinkBody), f);
 	if(extlink.ID != ExtLinkBody_ID) {
 		fclose(f);
 		return fail("Extlink ID mismatch.");
@@ -161,28 +161,28 @@ int main(int argc, char **argv) {
 	fclose(f);
 	char target[768];
 	ucs2tombs((unsigned char*)target, extlink.NDSFullPathFilenameUnicode, 768);
-	std::string txtpath;
+	std::string txtpath = "0:";
 	for(u32 i = 0; i < strlen(target); i++){
 		txtpath.push_back(target[i]);
 	}
-	txtpath = "sd:" + txtpath.erase(txtpath.size() - 4) + ".txt";
+	txtpath = txtpath.erase(txtpath.size() - 4) + ".txt";
+	printf(txtpath.c_str());
 	f = fopen(txtpath.c_str(), "r");
 	if (!f) return fail("Path text file does not exist.");
-	std::vector<char*> argarray;
-	argarray.push_back(strdup("NULL"));
-	argarray.push_back(strdup("NULL"));
 	ucs2tombs((unsigned char*)target, extlink.DataFullPathFilenameUnicode, 768);
-	fgets(argarray[0], 768, f);
-	argarray.at(1) = target;
-	if(access(argarray[0], F_OK) != 0) return fail("Bootstrap target does not exist.");
+	char bootstraptarget[770] = "0:";
+	fgets(bootstraptarget + 2, 768, f);
+	char *argarray[] {
+		bootstraptarget,
+		target
+	};
+	if(!(FileExists(argarray[0]))) return fail("Bootstrap target does not exist.");
 	char thisArgv[3][MAX_TGDSFILENAME_LENGTH];
 	memset(thisArgv, 0, sizeof(thisArgv));
 	strcpy(&thisArgv[0][0], TGDSPROJECTNAME);	//Arg0:	This Binary loaded
-	strcpy(&thisArgv[1][0], argarray[0]);	//Arg1:	NDS Binary reloaded
-	strcpy(&thisArgv[2][0], argarray[1]);					//Arg2: NDS Binary ARG0
-	addARGV(3, (char*)&thisArgv);				
+	strcpy(&thisArgv[1][0], argarray[0]);		//Arg1:	NDS Binary reloaded
+	strcpy(&thisArgv[2][0], argarray[1]);		//Arg2: NDS Binary ARG0
+	addARGV(3, (char*)&thisArgv);
 	if(TGDSMultibootRunNDSPayload(argarray[0]) == false) return fail("NDS Launch fail."); //should never reach here, nor even return true. Should fail it returns false
-
-	return 0;
 }
 
