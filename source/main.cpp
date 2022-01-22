@@ -79,10 +79,13 @@ int main(void) {
 	argarray.push_back(strdup("NULL"));
 	argarray.push_back(strdup("NULL"));
 	ucs2tombs((unsigned char*)target, extlink.DataFullPathFilenameUnicode, 768);
-	argarray[0] = "/moonshl2.nds";
+	char reload[] = "fat:/moonshl2.nds";
+	argarray[0] = reload;
 	fgets(argarray[1], 768, f);
-	argarray.at(2) = target;
-	if(access(argarray[0], F_OK) != 0) return fail("Bootstrap target does not exist.");
+	char tgdstarget[780];
+	sprintf(tgdstarget, "fat:%s", target);
+	argarray.at(2) = tgdstarget;
+	if(access(argarray[1], F_OK) != 0) return fail("Bootstrap target does not exist.");
 	int err = runNdsFile (argarray[1], argarray.size(), (const char **)&argarray[0]);
 	if (err != 0) return fail("NDS Launch error " + err);
 }
