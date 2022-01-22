@@ -77,10 +77,12 @@ int main(void) {
 	std::vector<char*> argarray;
 	argarray.push_back(strdup("NULL"));
 	argarray.push_back(strdup("NULL"));
+	argarray.push_back(strdup("NULL"));
 	ucs2tombs((unsigned char*)target, extlink.DataFullPathFilenameUnicode, 768);
-	fgets(argarray[0], 768, f);
-	argarray.at(1) = target;
+	argarray[0] = "/moonshl2.nds";
+	fgets(argarray[1], 768, f);
+	argarray.at(2) = target;
 	if(access(argarray[0], F_OK) != 0) return fail("Bootstrap target does not exist.");
-	int err = runNdsFile (argarray[0], argarray.size(), (const char **)&argarray[0]);
+	int err = runNdsFile (argarray[1], argarray.size(), (const char **)&argarray[0]);
 	if (err != 0) return fail("NDS Launch error " + err);
 }
